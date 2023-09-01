@@ -17,6 +17,13 @@ void get_user(struct http_response *response)
          "select * from user where name = '%q' limit 1;", 
          "franco");
     
+    struct user first_two_users[2] = {0};
+    int to_find = 2;
+    find_many(first_two_users,
+              struct user,
+              to_find,
+              "select * from user limit %d;", to_find);
+    
     header(response, "Content-Type", "text/html");
     response(response, "200 OK", "first user is %s", first_user.name);
 }

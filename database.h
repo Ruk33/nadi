@@ -36,7 +36,10 @@ struct field {
 {#type, #name, offsetof(type, name), size, type_text,}
 
 #define find(dest, type, ...) \
-database_find(dest, sizeof(type), 0, fields, sizeof(fields)/sizeof(*fields), 1, #type, __VA_ARGS__)
+database_find((dest), sizeof(type), 0, fields, sizeof(fields) / sizeof(*fields), 1, #type, __VA_ARGS__)
+
+#define find_many(dest, type, n, ...) \
+database_find((dest), sizeof(type), 0, fields, sizeof(fields) / sizeof(*fields), (n), #type, __VA_ARGS__)
 
 #define create(table, src) \
 database_create(0, #table, fields, sizeof(fields)/sizeof(*fields), src)
