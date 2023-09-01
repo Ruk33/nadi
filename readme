@@ -1,0 +1,24 @@
+important
+    - easy to use, enjoyable
+    - performant
+    - low usage resource
+    - makes sense
+    - easy to deploy
+    - easy log
+    - sqlite3
+    - run actions through the api/admin panel
+    - no migrations?
+    - upload new version, and hit deploy from
+      admin panel to refresh the new version. use
+      symlink to make this happen.
+    - before deploy, create backup and allow to
+      rollback
+    - handle env variables from admin dashboard.
+
+features
+    - queues
+    - email
+    - auth
+    - backup
+    - admin dashboard
+    - easy crud generator for resources
