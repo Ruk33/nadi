@@ -32,6 +32,12 @@ struct field {
 #define field_text_n(type, name, size) \
 {#name, offsetof(type, name), size, type_text,}
 
+#define find(dest, table, id) \
+database_find(dest, 0, #table, id, table##_fields, sizeof(table##_fields)/sizeof(*table##_fields))
+
+#define create(table, src) \
+database_create(0, #table, table##_fields, sizeof(table##_fields)/sizeof(*table##_fields), src)
+
 int database_find(void *dest, struct database *db, char *table, int id, struct field *fields, int fields_count);
 
 int database_create(struct database *db, char *table, struct field *fields, int fields_count, void *src);

@@ -2,195 +2,103 @@
 #include <stdlib.h> // calloc, size_t
 #include <unistd.h> // close
 #include <string.h> // memcpy
-#include <stdio.h> // printf
 #include "asocket.h"
 #include "http_request.h"
 #include "http_response.h"
 #include "flib.h"
-#include "database.h"
+#include "routes.h"
 
-// max routes that can be defined.
-#define max_routes 64
-// max body size in bytes.
-#define max_body 1024
-// max requests to be handled
-// at the same time.
-#define max_requests 8
-// max headers to receive/send per request.
-#define max_headers 32
-
-struct body {
-    char buf[max_body];
-    uint size;
-};
-
-struct response {
-    struct body body;
-};
-
-struct request {
+struct conn {
     int fd;
-    struct body body;
-    struct response response;
-    uint written;
-    uint to_write;
-    struct http_header headers[max_headers];
-    uint headers_count;
-    uint used;
-};
-
-typedef void route_cb(struct request *);
-void not_found(struct request *);
-
-struct uri {
-    char buf[64];
-};
-
-struct route {
-    struct uri path;
-    route_cb *cb;
-    enum http_request_method verb;
+    char request[1024];
+    int request_size;
+    struct http_response response;
+    int written;
+    int used;
 };
 
 struct program {
-    // routes
-    struct route routes[max_routes];
-    uint routes_count;
-    
-    // requests
-    struct request requests[max_requests];
+    struct route_list routes;
+    struct conn connections[8];
 };
 
 static struct program *program = 0;
 
-// just some nice route aliasing.
-#define get(path, cb) route(&(struct route) {path, cb, METHOD_GET})
-#define post(path, cb) route(&(struct route) {path, cb, METHOD_POST})
-#define put(path, cb) route(&(struct route) {path, cb, METHOD_PUT})
-#define delete(path, cb) route(&(struct route) {path, cb, METHOD_DELETE})
-
-void route(struct route *src)
+struct conn *get_or_create_conn_for(int fd)
 {
-    assert(src);
-    program->routes[program->routes_count++] = *src;
-}
-
-void header(struct request *req, char *key, char *val)
-{
-    if (!req || !key || !val)
-        return;
-    if (req->headers_count + 1 >= max_headers)
-        return;
-    struct http_header *h = req->headers + req->headers_count;
-    strncpy(h->key, key, sizeof(h->key) - 1);
-    strncpy(h->val, val, sizeof(h->val) - 1);
-    req->headers_count++;
-}
-
-void response2(struct request *req, char *status, char *content)
-{
-    if (!req)
-        return;
-    if (!status)
-        status = "200 OK";
-    if (!content)
-        content = "";
-    req->to_write = http_response_encode(req->response.body.buf,
-                                         sizeof(req->response.body.buf), 
-                                         status, 
-                                         req->headers,
-                                         req->headers_count, 
-                                         content);
-}
-
-#define response(req, status, content, ...) \
-do { \
-response2(req, status, 0); \
-req->to_write += strf(req->response.body.buf + req->to_write, \
-sizeof(req->response.body.buf) - req->to_write, \
-content, \
-__VA_ARGS__); \
-} while (0)
-
-#define find(dest, table, id) \
-database_find(dest, 0, #table, id, table##_fields, sizeof(table##_fields)/sizeof(*table##_fields))
-
-#define create(table, src) \
-database_create(0, #table, table##_fields, sizeof(table##_fields)/sizeof(*table##_fields), src)
-
-struct request *get_or_create_request_for(int fd)
-{
-    struct request *request = 0;
-    for_each(struct request, req, program->requests) {
+    struct conn *free_conn = 0;
+    for_each(struct conn, conn, program->connections) {
         // found the request used by this fd.
-        if (req->fd == fd)
-            return req;
+        if (conn->fd == fd)
+            return conn;
         // found a free request that can be used
         // in case we don't find a request with this
         // fd.
-        if (!request && !req->used)
-            request = req;
+        if (!free_conn && !conn->used)
+            free_conn = conn;
     }
     // at full capacity?
-    if (!request)
+    if (!free_conn)
         return 0;
     // clean the new request so we start fresh.
-    memset(request, 0, sizeof(*request));
-    request->fd = fd;
-    request->used = 1;
-    return request;
+    memset(free_conn, 0, sizeof(*free_conn));
+    free_conn->fd = fd;
+    free_conn->used = 1;
+    return free_conn;
 }
 
 void handle_event(int fd, enum asocket_event ev, void *buf, size_t len)
 {
+    struct conn *conn = get_or_create_conn_for(fd);
     switch (ev) {
         case ASOCKET_NEW_CONN: {
-            struct request *request = get_or_create_request_for(fd);
-            if (!request)
+            if (!conn)
                 close(fd);
         } break;
         
         case ASOCKET_CLOSED: {
-            struct request *request = get_or_create_request_for(fd);
-            if (request)
-                memset(request, 0, sizeof(*request));
+            if (conn)
+                memset(conn, 0, sizeof(*conn));
         } break;
         
         case ASOCKET_READ: {
-            struct request *request = get_or_create_request_for(fd);
-            assert(request);
+            if (!conn)
+                return;
             // don't read more than what the buffer can hold.
-            len = min((size_t) (max_body - request->body.size), len);
+            len = min((size_t) (sizeof(conn->request) - conn->request_size), 
+                      len);
             // read.
-            memcpy(request->body.buf + request->body.size, buf, len);
+            memcpy(conn->request + conn->request_size, buf, len);
             // update size and guarantee null terminator.
-            request->body.size += len;
-            request->body.buf[request->body.size] = 0;
+            conn->request_size += len;
+            conn->request[conn->request_size] = 0;
             // only handle complete requests.
-            if (http_request_is_partial(request->body.buf))
+            if (http_request_is_partial(conn->request))
                 return;
             // search for route or 404.
-            for_each(struct route, route, program->routes) {
-                if (http_request_get_method(request->body.buf) != route->verb)
+            for_each(struct route, route, program->routes.routes) {
+                if (http_request_get_method(conn->request) != route->verb)
                     continue;
-                if (!http_request_matches_path(request->body.buf, route->path.buf))
+                if (!http_request_matches_path(conn->request, route->path))
                     continue;
                 // handle request and prevent 404.
-                route->cb(request);
+                route->cb(&conn->response);
                 return;
             }
             // 404.
-            not_found(request);
+            not_found(&conn->response);
         } break;
         
         case ASOCKET_CAN_WRITE: {
-            struct request *request = get_or_create_request_for(fd);
-            assert(request);
-            if (request->to_write == request->written)
+            if (!conn)
                 return;
-            request->written += asocket_write(fd, request->response.body.buf + request->written, request->to_write - request->written);
-            if (request->to_write == request->written) {
-                memset(request, 0, sizeof(*request));
+            if (conn->response.body_size == conn->written)
+                return;
+            conn->written += asocket_write(fd, 
+                                           conn->response.body + conn->written,
+                                           conn->response.body_size - conn->written);
+            if (conn->response.body_size == conn->written) {
+                memset(conn, 0, sizeof(*conn));
                 close(fd);
             }
         } break;
@@ -199,42 +107,6 @@ void handle_event(int fd, enum asocket_event ev, void *buf, size_t len)
         break;
     }
 }
-
-///////
-
-void greeting(struct request *req)
-{
-    header(req, "Content-Type", "text/html");
-    response(req, 0, "hello! this is my response!!", 0);
-}
-
-struct user {
-    char name[32];
-    // struct user_name { char buf[32]; } name;
-    char pass[32];
-    int age;
-};
-
-struct field user_fields[] = {
-    field_text(struct user, name),
-    field_text(struct user, pass),
-    field_int(struct user, age),
-};
-
-void not_found(struct request *req)
-{
-    printf("404 hit!." nl);
-    
-    struct user franco = {0};
-    // find(&franco, user, 42);
-    strf_ex(franco.name, "%s", "yay!");
-    create(user, &franco);
-    
-    header(req, "Content-Type", "text/html");
-    response(req, "404 Not found", "name is %s", franco.name);
-}
-
-///////
 
 int main()
 {
@@ -245,7 +117,7 @@ int main()
     // migrations();
     
     // routes
-    get("/greeting", greeting);
+    routes(&program->routes);
     
     // start!
     int fd = asocket_port(8080);
