@@ -1,10 +1,4 @@
-#include <stdio.h>
-#include "database.h"
-#include "model.h"
-#include "flib.h"
-#include "http_request.h"
-#include "http_response.h"
-#include "routes.h"
+#include "nadi.h"
 
 void greeting(struct http_response *response)
 {
@@ -24,7 +18,6 @@ void not_found(struct http_response *response)
     header(response, "Content-Type", "text/html");
     response(response, "404 Not found", "name is %s", franco.name);
 }
-
 
 void routes(struct route_list *routes)
 {
