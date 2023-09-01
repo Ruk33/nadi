@@ -3,12 +3,15 @@
 struct database;
 
 struct field {
+    const char *table;
     // name of the column/field.
     const char *name;
     // offset to property/field.
     unsigned long long offset;
     // how much can be stored/copied.
     unsigned long long size;
+    // size of the whole parent.
+    // unsigned long long table_size;
     // type of value.
     enum {
         type_float,
@@ -20,24 +23,32 @@ struct field {
 };
 
 #define field_float(type, name) \
-{#name, offsetof(type, name), sizeof(((type *)(0))->name), type_float,}
+{#type, #name, offsetof(type, name), sizeof(((type *)(0))->name), type_float,}
 #define field_double(type, name) \
-{#name, offsetof(type, name), sizeof(((type *)(0))->name), type_double,}
+{#type, #name, offsetof(type, name), sizeof(((type *)(0))->name), type_double,}
 #define field_int(type, name) \
-{#name, offsetof(type, name), sizeof(((type *)(0))->name), type_int,}
+{#type, #name, offsetof(type, name), sizeof(((type *)(0))->name), type_int,}
 #define field_long(type, name) \
-{#name, offsetof(type, name), sizeof(((type *)(0))->name), type_long,}
+{#type, #name, offsetof(type, name), sizeof(((type *)(0))->name), type_long,}
 #define field_text(type, name) \
-{#name, offsetof(type, name), sizeof(((type *)(0))->name) - 1, type_text,}
+{#type, #name, offsetof(type, name), sizeof(((type *)(0))->name) - 1, type_text,}
 #define field_text_n(type, name, size) \
-{#name, offsetof(type, name), size, type_text,}
+{#type, #name, offsetof(type, name), size, type_text,}
 
-#define find(dest, table, id) \
-database_find(dest, 0, #table, id, table##_fields, sizeof(table##_fields)/sizeof(*table##_fields))
+#define find(dest, type, ...) \
+database_find(dest, sizeof(type), 0, fields, sizeof(fields)/sizeof(*fields), 1, #type, __VA_ARGS__)
 
 #define create(table, src) \
-database_create(0, #table, table##_fields, sizeof(table##_fields)/sizeof(*table##_fields), src)
+database_create(0, #table, fields, sizeof(fields)/sizeof(*fields), src)
 
-int database_find(void *dest, struct database *db, char *table, int id, struct field *fields, int fields_count);
+int database_find(void *dest, 
+                  unsigned long long stride, 
+                  struct database *db, 
+                  struct field *fields,
+                  unsigned long long fields_count,
+                  unsigned long long limit, 
+                  char *table,
+                  char *query, 
+                  ...);
 
 int database_create(struct database *db, char *table, struct field *fields, int fields_count, void *src);

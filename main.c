@@ -3,10 +3,7 @@
 #include <unistd.h> // close
 #include <string.h> // memcpy
 #include "asocket.h"
-#include "http_request.h"
-#include "http_response.h"
-#include "flib.h"
-#include "routes.h"
+#include "nadi.h"
 
 struct conn {
     int fd;

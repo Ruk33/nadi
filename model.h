@@ -5,7 +5,7 @@ struct user {
     int age;
 };
 
-struct field user_fields[] = {
+static struct field fields[] = {
     field_int(struct user, id),
     field_text(struct user, name),
     field_text(struct user, pass),

@@ -1,8 +1,10 @@
 #include <assert.h> // assert
-#include <stdio.h> // printf
+#include <stdio.h>  // printf
 #include <string.h> // snprintf
 #include <sqlite3.h>
+#include "flib.h"
 #include "database.h"
+#include "model.h"
 
 struct database {
     sqlite3 *conn;
@@ -108,7 +110,11 @@ static void bind_text_n(struct database *db, char *key, char *value, int n)
     check_failure(db, sqlite3_bind_text(db->stmt, key_index, value, n, 0));
 }
 
-static void fields_to(void *dest, struct database *db, struct field *fields, int fields_count)
+static void fields_to(void *dest, 
+                      struct database *db, 
+                      char *table, 
+                      struct field *fields,
+                      unsigned long long fields_count)
 {
     assert(dest);
     assert(db);
@@ -116,10 +122,11 @@ static void fields_to(void *dest, struct database *db, struct field *fields, int
     int columns = sqlite3_column_count(db->stmt);
     for (int i = 0; i < columns; i++) {
         const char *colum_name = sqlite3_column_name(db->stmt, i);
-        for (int j = 0; j < fields_count; j++) {
+        for (unsigned long long j = 0; j < fields_count; j++) {
             if (!fields[j].name ||
                 !colum_name ||
-                strcmp(fields[j].name, colum_name) != 0)
+                !str_ends_with((char *) fields[j].table, (char *) table) ||
+                !str_equals((char *) fields[j].name, (char *) colum_name))
                 continue;
             switch (fields[j].type) {
                 case type_float:
@@ -151,27 +158,33 @@ static void fields_to(void *dest, struct database *db, struct field *fields, int
     }
 }
 
-int database_find(void *dest, struct database *db, char *table, int id, struct field *fields, int fields_count)
+int database_find(void *dest, 
+                  unsigned long long stride, 
+                  struct database *db, 
+                  struct field *fields,
+                  unsigned long long fields_count,
+                  unsigned long long limit, char *table,
+                  char *query, 
+                  ...)
 {
-    assert(dest);
-    assert(table);
-    assert(fields);
+    va_list va;
+    va_start(va, query);
+    char *parsed_query = sqlite3_vmprintf(query, va);
+    va_end(va);
+    
+    if (!parsed_query)
+        return 0;
     
     if (!db)
         db = &(struct database) {0};
     
-    char query[256] = {0};
-    snprintf(query, 
-             sizeof(query) - 1, 
-             "select * from %s where id = :id limit 1;", 
-             table);
-    
-    begin_query(db, query);
-    bind_int(db, ":id", id);
-    
-    execute(db);
-    fields_to(dest, db, fields, fields_count);
-    
+    begin_query(db, parsed_query);
+    for (unsigned long long i = 0; i < limit; i++) {
+        execute(db);
+        fields_to(dest, db, table, fields, fields_count);
+        (byte *)dest += stride;
+    }
+    sqlite3_free(parsed_query);
     end_query(db);
     
     return !db->failed;
