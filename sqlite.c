@@ -163,7 +163,7 @@ int database_find(void *dest, struct database *db, char *table, int id, struct f
     char query[256] = {0};
     snprintf(query, 
              sizeof(query) - 1, 
-             "select * from %s where age = :id limit 1;", 
+             "select * from %s where id = :id limit 1;", 
              table);
     
     begin_query(db, query);

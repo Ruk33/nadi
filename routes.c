@@ -1,25 +1,32 @@
 #include "nadi.h"
 
-void greeting(struct http_response *response)
+void create_user(struct http_response *response)
 {
     header(response, "Content-Type", "text/html");
-    response(response, 0, "hello! this is my response!!", 0);
+    
+    struct user new_user = {.id=0, .name="foo", .pass="", .age=42};
+    create(user, &new_user);
+    response(response, "200 OK", "the new user is %s", new_user.name);
+}
+
+void get_user(struct http_response *response)
+{
+    header(response, "Content-Type", "text/html");
+    
+    struct user first_user = {0};
+    find(&first_user, user, 0);
+    response(response, "200 OK", "first user is %s", first_user.name);
 }
 
 void not_found(struct http_response *response)
 {
-    printf("404 hit!." nl);
-    
-    struct user franco = {0};
-    // find(&franco, user, 42);
-    strf_ex(franco.name, "%s", "yay!");
-    create(user, &franco);
-    
+    printf("404 hit!" nl);
     header(response, "Content-Type", "text/html");
-    response(response, "404 Not found", "name is %s", franco.name);
+    response(response, "404 Not found", "%s", "oops?...");
 }
 
 void routes(struct route_list *routes)
 {
-    get(routes, "/greeting", greeting);
+    get(routes, "/create", create_user);
+    get(routes, "/get", get_user);
 }

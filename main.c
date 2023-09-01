@@ -113,9 +113,6 @@ int main()
     program = calloc(1, sizeof(*program));
     assert(program);
     
-    // run migrations.
-    // migrations();
-    
     // routes
     routes(&program->routes);
     
