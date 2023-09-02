@@ -208,69 +208,68 @@ int database_create(struct database *db,
     if (!db)
         db = &(struct database) {0};
     
+    unsigned int column_count = 0;
+    struct field *columns = 0;
+    
+    // find columns.
+    for (unsigned long long i = 0; i < fields_count; i++) {
+        if (!str_ends_with((char *) fields[i].table, (char *) table))
+            continue;
+        columns = fields + i;
+        column_count++;
+    }
+    // no columns found?
+    if (!columns)
+        return 0;
+    // go back to the first column.
+    columns -= column_count;
+    columns++;
+    // build "?, ?, ? ..." string (each ? represents a column)
+    char column_names[128] = {0};
+    char values[32] = {0};
+    for (unsigned i = 0; i < column_count; i++) {
+        strf_ex(column_names, 
+                "%s%s%s",
+                column_names,
+                columns[i].name,
+                i + 1 < column_count ? "," : "");
+        strf_ex(values, 
+                "%s?%s",
+                values,
+                i + 1 < column_count ? "," : "");
+    }
     char query[256] = {0};
-    unsigned int columns = 0;
-    int written = 0;
-    int tmp = snprintf(query, sizeof(query) - 1, "insert into %s (", table);
-    tmp = tmp == -1 ? 0 : tmp;
-    written += tmp;
-    for (unsigned long long i = 0; i < fields_count; i++) {
-        if (!str_ends_with((char *) fields[i].table, (char *) table))
-            continue;
-        columns++;
-        tmp = snprintf(query + written, 
-                       sizeof(query) - written - 1, 
-                       "%s,", 
-                       fields[i].name);
-        tmp = tmp == -1 ? 0 : tmp;
-        written += tmp;
-    }
-    if (query[written-1] == ',')
-        written--;
-    tmp = snprintf(query + written, sizeof(query) - written - 1, ") values (");
-    tmp = tmp == -1 ? 0 : tmp;
-    written += tmp;
-    for (unsigned long long i = 0; i < fields_count; i++) {
-        if (!str_ends_with((char *) fields[i].table, (char *) table))
-            continue;
-        tmp = snprintf(query + written, 
-                       sizeof(query) - written - 1, 
-                       ":%s,", 
-                       fields[i].name);
-        tmp = tmp == -1 ? 0 : tmp;
-        written += tmp;
-    }
-    if (query[written-1] == ',')
-        written--;
-    tmp = snprintf(query + written, sizeof(query) - written - 1, ");");
-    tmp = tmp == -1 ? 0 : tmp;
-    written += tmp;
+    strf_ex(query, 
+            "insert into %s(%s) values (%s);",
+            table,
+            column_names,
+            values);
     
     begin_query(db, query);
     
-    for (unsigned int i = 0; i < columns; i++) {
+    for (unsigned int i = 0; i < column_count; i++) {
         char column_key[64] = {0};
-        snprintf(column_key, sizeof(column_key) - 1, ":%s", fields[i].name);
-        switch (fields[i].type) {
+        snprintf(column_key, sizeof(column_key) - 1, ":%s", columns[i].name);
+        void *field = (src + columns[i].offset);
+        switch (columns[i].type) {
             case type_float:
-            bind_double(db, column_key, *(float *)(src + fields[i].offset));
+            check_failure(db, sqlite3_bind_double(db->stmt, i+1, *(float *) field));
             break;
             
             case type_double:
-            bind_double(db, column_key, *(double *)(src + fields[i].offset));
+            check_failure(db, sqlite3_bind_double(db->stmt, i+1, *(double *) field));
             break;
             
             case type_int:
-            bind_int(db, column_key, *(int *)(src + fields[i].offset));
+            check_failure(db, sqlite3_bind_int(db->stmt, i+1, *(int *) field));
             break;
             
             case type_long:
-            bind_long(db, column_key, *(long *)(src + fields[i].offset));
+            check_failure(db, sqlite3_bind_int64(db->stmt, i+1, *(long long *) field));
             break;
             
             case type_text:
-            bind_text(db, column_key, (char *)(src + fields[i].offset));
-            // bind_text_n(db, column_key, (char *)(src + fields[i].offset), fields[i].size);
+            check_failure(db, sqlite3_bind_text(db->stmt, i+1, field, -1, 0));
             break;
             
             default:

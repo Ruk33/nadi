@@ -4,6 +4,7 @@ void create_user(struct http_response *response)
 {
     struct user new_user = {.id=0, .name="hola", .pass="", .age=42};
     create(user, &new_user);
+    log_info("new user %s created", new_user.name);
     
     header(response, "Content-Type", "text/html");
     response(response, 
@@ -24,6 +25,7 @@ void get_user(struct http_response *response)
          "franco");
     
     query("select 1;");
+    // log_info("new user %s created", new_user.name);
     
     struct user first_two_users[2] = {0};
     int to_find = 2;

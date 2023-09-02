@@ -7,7 +7,7 @@ struct user {
 
 struct log {
     char severity[32];
-    char message[256];
+    char message[1024];
 };
 
 static struct field fields[] = {
@@ -19,3 +19,5 @@ static struct field fields[] = {
     field_text(struct log, severity),
     field_text(struct log, message),
 };
+
+void log_info(char *message, ...);

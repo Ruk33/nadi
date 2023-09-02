@@ -110,6 +110,9 @@ int main()
     program = calloc(1, sizeof(*program));
     assert(program);
     
+    // reserve some memory
+    memory_reserve(10 mb);
+    
     // routes
     routes(&program->routes);
     
