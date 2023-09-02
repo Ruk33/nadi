@@ -6,7 +6,13 @@ void create_user(struct http_response *response)
     create(user, &new_user);
     
     header(response, "Content-Type", "text/html");
-    response(response, "200 OK", "the new user is %s", new_user.name);
+    response(response, 
+             "200 OK", 
+             "
+             the new user is %s
+             <b>and we can send some html too!</b>
+             ", 
+             new_user.name);
 }
 
 void get_user(struct http_response *response)
