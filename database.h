@@ -31,7 +31,7 @@ struct field {
 #define field_long(type, name) \
 {#type, #name, offsetof(type, name), sizeof(((type *)(0))->name), type_long,}
 #define field_text(type, name) \
-{#type, #name, offsetof(type, name), sizeof(((type *)(0))->name) - 1, type_text,}
+{#type, #name, offsetof(type, name), sizeof(((type *)(0))->name), type_text,}
 #define field_text_n(type, name, size) \
 {#type, #name, offsetof(type, name), size, type_text,}
 
@@ -57,4 +57,8 @@ int database_find(void *dest,
                   char *query, 
                   ...);
 
-int database_create(struct database *db, char *table, struct field *fields, int fields_count, void *src);
+int database_create(struct database *db, 
+                    char *table, 
+                    struct field *fields, 
+                    unsigned long long fields_count, 
+                    void *src);

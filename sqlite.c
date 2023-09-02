@@ -195,7 +195,11 @@ int database_find(void *dest,
     return !db->failed;
 }
 
-int database_create(struct database *db, char *table, struct field *fields, int fields_count, void *src)
+int database_create(struct database *db, 
+                    char *table, 
+                    struct field *fields, 
+                    unsigned long long fields_count, 
+                    void *src)
 {
     assert(table);
     assert(fields);
@@ -205,38 +209,46 @@ int database_create(struct database *db, char *table, struct field *fields, int 
         db = &(struct database) {0};
     
     char query[256] = {0};
+    unsigned int columns = 0;
     int written = 0;
     int tmp = snprintf(query, sizeof(query) - 1, "insert into %s (", table);
     tmp = tmp == -1 ? 0 : tmp;
     written += tmp;
-    for (int i = 0; i < fields_count; i++) {
+    for (unsigned long long i = 0; i < fields_count; i++) {
+        if (!str_ends_with((char *) fields[i].table, (char *) table))
+            continue;
+        columns++;
         tmp = snprintf(query + written, 
                        sizeof(query) - written - 1, 
-                       "%s%s", 
-                       fields[i].name,
-                       i + 1 < fields_count ? "," : "");
+                       "%s,", 
+                       fields[i].name);
         tmp = tmp == -1 ? 0 : tmp;
         written += tmp;
     }
+    if (query[written-1] == ',')
+        written--;
     tmp = snprintf(query + written, sizeof(query) - written - 1, ") values (");
     tmp = tmp == -1 ? 0 : tmp;
     written += tmp;
-    for (int i = 0; i < fields_count; i++) {
+    for (unsigned long long i = 0; i < fields_count; i++) {
+        if (!str_ends_with((char *) fields[i].table, (char *) table))
+            continue;
         tmp = snprintf(query + written, 
                        sizeof(query) - written - 1, 
-                       ":%s%s", 
-                       fields[i].name,
-                       i + 1 < fields_count ? "," : "");
+                       ":%s,", 
+                       fields[i].name);
         tmp = tmp == -1 ? 0 : tmp;
         written += tmp;
     }
+    if (query[written-1] == ',')
+        written--;
     tmp = snprintf(query + written, sizeof(query) - written - 1, ");");
     tmp = tmp == -1 ? 0 : tmp;
     written += tmp;
     
     begin_query(db, query);
     
-    for (int i = 0; i < fields_count; i++) {
+    for (unsigned int i = 0; i < columns; i++) {
         char column_key[64] = {0};
         snprintf(column_key, sizeof(column_key) - 1, ":%s", fields[i].name);
         switch (fields[i].type) {
@@ -257,7 +269,8 @@ int database_create(struct database *db, char *table, struct field *fields, int 
             break;
             
             case type_text:
-            bind_text_n(db, column_key, (char *)(src + fields[i].offset), fields[i].size);
+            bind_text(db, column_key, (char *)(src + fields[i].offset));
+            // bind_text_n(db, column_key, (char *)(src + fields[i].offset), fields[i].size);
             break;
             
             default:
