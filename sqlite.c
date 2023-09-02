@@ -172,6 +172,7 @@ int database_find(void *dest,
     char *parsed_query = sqlite3_vmprintf(query, va);
     va_end(va);
     
+    // check if failed to allocate memory.
     if (!parsed_query)
         return 0;
     
@@ -179,6 +180,10 @@ int database_find(void *dest,
         db = &(struct database) {0};
     
     begin_query(db, parsed_query);
+    // just wants to execute the query and
+    // ignore the result.
+    if (limit == 0)
+        execute(db);
     for (unsigned long long i = 0; i < limit; i++) {
         execute(db);
         fields_to(dest, db, table, fields, fields_count);

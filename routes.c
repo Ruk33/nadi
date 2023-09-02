@@ -17,6 +17,8 @@ void get_user(struct http_response *response)
          "select * from user where name = '%q' limit 1;", 
          "franco");
     
+    query("select 1;");
+    
     struct user first_two_users[2] = {0};
     int to_find = 2;
     find_many(first_two_users,

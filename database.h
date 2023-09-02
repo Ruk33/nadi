@@ -41,6 +41,9 @@ database_find((dest), sizeof(type), 0, fields, sizeof(fields) / sizeof(*fields),
 #define find_many(dest, type, n, ...) \
 database_find((dest), sizeof(type), 0, fields, sizeof(fields) / sizeof(*fields), (n), #type, __VA_ARGS__)
 
+#define query(...) \
+database_find(0, 0, 0, 0, 0, 0, 0, __VA_ARGS__)
+
 #define create(table, src) \
 database_create(0, #table, fields, sizeof(fields)/sizeof(*fields), src)
 
