@@ -4,7 +4,7 @@
 void log_info(char *message, ...)
 {
     make(struct log, new_log);
-    strf_ex(new_log->severity, "%s", "info");
+    text(new_log->severity, "%s", "info");
     
     va_list va;
     va_start(va, message);

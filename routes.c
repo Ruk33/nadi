@@ -4,7 +4,7 @@ void create_user(struct http_response *response)
 {
     struct user new_user = {.id=0, .name="hola", .pass="", .age=42};
     create(user, &new_user);
-    log_info("new user %s created", new_user.name);
+    info("new user %s created", new_user.name);
     
     header(response, "Content-Type", "text/html");
     response(response, 
@@ -35,8 +35,10 @@ void get_user(struct http_response *response)
               "select * from user limit %d;", 
               to_find);
     
+    char current_directory[256] = {0};
+    run(current_directory, "pwd");
     header(response, "Content-Type", "text/html");
-    response(response, "200 OK", "first user is %s", first_user.name);
+    response(response, "200 OK", "first user is %s and the directory from where am running is %s", first_user.name, current_directory);
 }
 
 void not_found(struct http_response *response)

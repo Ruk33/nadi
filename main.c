@@ -91,9 +91,11 @@ void handle_event(int fd, enum asocket_event ev, void *buf, size_t len)
                 return;
             if (conn->response.body_size == conn->written)
                 return;
-            conn->written += asocket_write(fd, 
-                                           conn->response.body + conn->written,
-                                           conn->response.body_size - conn->written);
+            void *resume_from = conn->response.body + conn->written;
+            size_t to_be_sent = conn->response.body_size - conn->written;
+            conn->written += asocket_write(fd, resume_from, to_be_sent);
+            // when the entire response has been sent, close 
+            // the connection.
             if (conn->response.body_size == conn->written) {
                 memset(conn, 0, sizeof(*conn));
                 close(fd);
