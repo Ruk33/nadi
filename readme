@@ -1,26 +1,30 @@
-important
+aiming to:
     - easy to use, enjoyable
-    - performant
+    - performant, not crazy performant, but at least
+      avoid excesive wasting of resources.
+    - works out of the box
     - low usage resource
     - makes sense
     - easy to deploy
     - easy log
     - sqlite3
-    - run actions through the api/admin panel
-    - no migrations?
+    - no dumb naming for components. you should be able
+      to know what it does by the name, ie, billing.
+
+todo features/ideas
+    - task: operations that run in the "background"
+      can repeat or not.
+    - email: send emails.
+    - auth: register, login, google
+    - backup: could be a task to be executed.
+    - admin dashboard: the idea would be to allow
+      admins to see tasks, logs, make changes in the
+      database, deploy new versions of the code, 
+      update env variables, etc.
+    - cli generator: would take care of boilerplate
+      code (ie, creating models, etc.)
     - upload new version, and hit deploy from
       admin panel to refresh the new version. use
       symlink to make this happen.
     - before deploy, create backup and allow to
       rollback
-    - handle env variables from admin dashboard.
-    - no dumb naming for components. you should be able
-      to know what it does by the name, ie, billing.
-
-todo features
-    - queues
-    - email
-    - auth
-    - backup
-    - admin dashboard
-    - easy crud generator for resources
