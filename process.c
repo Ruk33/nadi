@@ -10,7 +10,7 @@ int process_run(char *dest,
     if (!fp)
         return 0;
     if (dest)
-        while (fgets(dest, n, fp));
+        fgets(dest, n, fp);
     pclose(fp);
     return 1;
 }

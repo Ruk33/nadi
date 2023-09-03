@@ -31,3 +31,6 @@ strf_ex(dest, "%s" to_append, dest, __VA_ARGS__)
 
 #define run(output, command) \
 process_run(output, sizeof(output) - 1, command)
+
+#define request(output, url) \
+run(output, "curl -s \"" url "\"")
